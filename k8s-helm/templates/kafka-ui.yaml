@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kafka-ui
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-kafka-ui'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-ui
+  template:
+    metadata:
+      labels:
+        app: kafka-ui
+    spec:
+      containers:
+      - env:
+        - name: KAFKA_CLUSTERS_0_NAME
+          value: imu-kraft-cluster
+        - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
+          value: {{ .Values.kafka.kafkaBootStrapServers | quote }}
+        image: provectuslabs/kafka-ui:latest
+        name: kafka-ui
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kafka-ui
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-kafka-ui'
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: kafka-ui
+  type: ClusterIP

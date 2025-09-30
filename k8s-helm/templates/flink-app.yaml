@@ -1,0 +1,136 @@
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-flink-app-java'
+spec:
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: {{ .Values.flink.taskSlots }}
+    taskmanager.cpu.cores: {{ .Values.flink.taskCores}}
+    taskmanager.memory.process.size: {{ .Values.flink.taskManagerMemory }}
+    taskmanager.memory.task.off-heap.enabled: true
+    taskmanager.memory.managed.size: 5g
+    taskmanager.memory.managed.fraction: 0.3
+  flinkVersion: v1_19
+  image: {{ .Values.images.flinkApp | quote }}
+  job:
+    jarURI: local:///opt/flink/usrlib/flink-java-sensor-app-1.0-SNAPSHOT.jar
+    # The parallelism for the job itself should also be configurable.
+    parallelism: {{ .Values.flink.parallelism | default 1 }}
+    upgradeMode: stateless
+
+  # --- Start of Major Changes ---
+
+  jobManager:
+    podTemplate:
+      spec:
+        # This is correct: it uses the ECR secret managed by ESO.
+        imagePullSecrets:
+          - name: ecr-creds
+        containers:
+        - name: flink-main-container
+          env:
+            # --- Configuration from values.yaml ---
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.kafkaBootStrapServers | quote }}
+            - name: CHECKPOINT_INTERVAL_MS
+              value: '{{ .Values.env.CHECKPOINT_INTERVAL_MS }}'
+            - name: FLINK_PARALLELISM
+              value: '{{ .Values.flink.parallelism }}'
+            # --- External Secrets (explicitly declared for clarity) ---
+            - name: S3_BUCKET_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: S3_BUCKET_PATH
+            - name: S3_OUTPUT_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: S3_OUTPUT_PATH
+            - name: MLFLOW_SCALING_INFO_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_SCALING_INFO_PATH
+            - name: MLFLOW_ONNX_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_ONNX_PATH
+            - name: MLFLOW_PARAMS_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_PARAMS_PATH
+            # --- AWS Credentials (for S3 access) ---
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+    resource:
+      cpu: 2
+      memory: 4Gi
+  serviceAccount: flink
+
+  # The TaskManager MUST have the exact same environment as the JobManager.
+  taskManager:
+    podTemplate:
+      spec:
+        imagePullSecrets:
+          - name: ecr-creds
+        containers:
+          - name: flink-main-container
+            env:
+            # --- Configuration from values.yaml ---
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.kafkaBootStrapServers | quote }}
+            - name: CHECKPOINT_INTERVAL_MS
+              value: '{{ .Values.env.CHECKPOINT_INTERVAL_MS }}'
+            - name: FLINK_PARALLELISM
+              value: '{{ .Values.flink.parallelism }}'
+            # --- External Secrets (explicitly declared for clarity) ---
+            - name: S3_BUCKET_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: S3_BUCKET_PATH
+            - name: S3_OUTPUT_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: S3_OUTPUT_PATH
+            - name: MLFLOW_SCALING_INFO_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_SCALING_INFO_PATH
+            - name: MLFLOW_ONNX_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_ONNX_PATH
+            - name: MLFLOW_PARAMS_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_PARAMS_PATH
+            # --- AWS Credentials (for S3 access) ---
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: AWS_SECRET_ACCESS_KEY

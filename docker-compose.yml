@@ -1,0 +1,287 @@
+# --- Reusable Dependency and Configuration Blocks ---
+
+x-kafka-image: &kafka-image confluentinc/cp-kafka:7.4.0
+
+x-kafka-common-healthcheck: &kafka-common-healthcheck
+  test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:29092", "--list"]
+  interval: 15s
+  timeout: 10s
+  retries: 5
+  start_period: 10s
+
+# Waits for the Zookeeper service to be healthy.
+x-depends-on-zookeeper: &depends-on-zookeeper
+  zookeeper:
+    condition: service_healthy
+
+# Waits for the entire Kafka cluster (all brokers) to be healthy.
+x-depends-on-kafka-cluster: &depends-on-kafka-cluster
+  kafka:
+    condition: service_healthy
+  kafka2:
+    condition: service_healthy
+  kafka3:
+    condition: service_healthy
+
+# Waits for the MongoDB service to be healthy.
+x-depends-on-mongo: &depends-on-mongo
+  mongo:
+    condition: service_healthy
+
+# Waits for the Mosquitto service to start (it has no healthcheck).
+x-depends-on-mosquitto: &depends-on-mosquitto
+  mosquitto:
+    condition: service_started
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+
+  # --- Kafka Brokers ---
+  kafka:
+    image: *kafka-image
+    container_name: kafka
+    hostname: kafka
+    depends_on:
+      <<: *depends-on-zookeeper
+    ports: ["9092:9092"]
+    healthcheck: *kafka-common-healthcheck
+    volumes: ["kafka_data:/var/lib/kafka/data"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+    env_file: ["./kafka.env"]
+
+  kafka2:
+    image: *kafka-image
+    container_name: kafka2
+    hostname: kafka2
+    depends_on:
+      <<: *depends-on-zookeeper
+    ports: ["9094:9092"]
+    healthcheck: *kafka-common-healthcheck
+    volumes: ["kafka2_data:/var/lib/kafka/data"]
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka2:29092,EXTERNAL://localhost:9094
+    env_file: ["./kafka.env"]
+
+  kafka3:
+    image: *kafka-image
+    container_name: kafka3
+    hostname: kafka3
+    depends_on:
+      <<: *depends-on-zookeeper
+    ports: ["9096:9092"]
+    healthcheck: *kafka-common-healthcheck
+    volumes: ["kafka3_data:/var/lib/kafka/data"]
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka3:29092,EXTERNAL://localhost:9096
+    env_file: ["./kafka.env"]
+
+  # --- Application Services ---
+  kafka-topic-init:
+    image: *kafka-image
+    container_name: kafka-topic-init
+    depends_on:
+      <<: *depends-on-kafka-cluster
+    volumes: ["./kafka-topics-init/create_topics.sh:/create-kafka-topics.sh:ro"]
+    command: ["bash", "/create-kafka-topics.sh"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "${KAFKA_BOOTSTRAP_SERVERS}"
+      NUMBER_OF_PARTITIONS: "${NUMBER_OF_PARTITIONS}"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "${KAFKA_DEFAULT_REPLICATION_FACTOR}"
+
+  kafka-connect:
+    image: ${ECR_REGISTRY_URL}/kafka-connect-custom:latest
+    container_name: kafka-connect
+    depends_on:
+      # CORRECTED: Kafka Connect needs the full cluster and the topics to exist.
+      <<: *depends-on-kafka-cluster
+      kafka-topic-init:
+        condition: service_completed_successfully
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect" # Keep as service name for internal access
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: "kafka-connect-group"
+      CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
+      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+      # Replication factor MUST match the mode set in .env
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: ${KAFKA_CONNECT_REPLICATION_FACTOR}
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: ${KAFKA_CONNECT_REPLICATION_FACTOR}
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: ${KAFKA_CONNECT_REPLICATION_FACTOR}
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_LOG4J_LOGGERS: "org.reflections=ERROR"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components,/etc/kafka-connect/jars"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    volumes: ["kafka_connect_data:/kafka-connect-data"]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports: ["8080:8080"]
+    depends_on:
+      <<: *depends-on-kafka-cluster
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local-kafka-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+
+  connector-init:
+    image: curlimages/curl:latest
+    container_name: connector-init
+    depends_on:
+      # This dependency is correct as it is.
+      kafka-connect:
+        condition: service_healthy
+      <<: *depends-on-mongo
+    volumes: ["./connectors:/config"]
+    command: ["sh", "/config/create-connectors.sh"]
+    environment:
+      KAFKA_CONNECT_URL: "${KAFKA_CONNECT_URL}"
+      KAFKA_NEW_SESSION_TOPIC: "${KAFKA_NEW_SESSION_TOPIC}"
+
+  frontend:
+    build: { context: ./frontend }
+    container_name: frontend
+    ports: ["8501:8501"]
+    volumes: ["./frontend:/app"]
+    restart: unless-stopped
+
+  fastapi-app:
+    image: ${ECR_REGISTRY_URL}/fastapi-app:latest
+    container_name: fastapi-app
+    depends_on:
+      <<: [*depends-on-kafka-cluster, *depends-on-mongo]
+    ports: ["${FAST_API_PORT}:${FAST_API_PORT}"]
+    env_file: ["./.env"]
+    environment: { PYTHONUNBUFFERED: 1 }
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    ports: ["${MQTT_BROKER_PORT:-1883}:1883", "9001:9001"]
+    volumes: ["./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf"]
+    restart: unless-stopped
+
+  mqtt-bridge:
+    image: ${ECR_REGISTRY_URL}/mqtt-bridge:latest
+    container_name: mqtt-bridge
+    depends_on:
+      <<: [*depends-on-mosquitto, *depends-on-kafka-cluster]
+    env_file: ["./.env"]
+    restart: unless-stopped
+
+  mqttui:
+    image: terdia07/mqttui:v1.3.0
+    container_name: mqtt-ui
+    ports: ["5721:5000"]
+    # depends_on:
+    #   <<: *depends-on-mosquitto
+    env_file: ["./.env"]
+    environment: { DEBUG: "False", PORT: "5000", MQTT_BROKER: "${MQTT_BROKER_HOST}" }
+    restart: unless-stopped
+
+  # --- Flink ---
+  flink-jobmanager:
+    image: ${ECR_REGISTRY_URL}/flink-app:latest
+    container_name: flink-jobmanager
+    hostname: flink-jobmanager
+    depends_on:
+      <<: *depends-on-kafka-cluster
+    ports: ["8081:8081"]
+    command: jobmanager
+    working_dir: /opt/flink/app
+    env_file: ["./.env"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/overview"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  flink-taskmanager:
+    image: ${ECR_REGISTRY_URL}/flink-app:latest
+    container_name: flink-taskmanager
+    hostname: flink-taskmanager
+    depends_on:
+      # CORRECTED: Use the long-form with healthcheck for robustness.
+      flink-jobmanager:
+        condition: service_healthy
+    command: taskmanager
+    env_file: ["./.env"]
+    environment:
+      - |
+        FLINK_PROPERTIES=
+            jobmanager.rpc.address: flink-jobmanager
+            jobmanager.rpc.port: 6123
+            taskmanager.numberOfTaskSlots: ${TASK_SLOTS}
+            taskmanager.cpu.cores: ${TASK_CORES:-12}
+            taskmanager.bind-host: 0.0.0.0
+            taskmanager.memory.process.size: 15g
+            taskmanager.memory.task.off-heap.enabled: true
+            taskmanager.memory.managed.size: 5g
+            taskmanager.memory.managed.fraction: 0.3
+            rest.bind-address: 0.0.0.0
+            rest.address: flink-jobmanager
+            blob.server.port: 6124
+
+  flink-app:
+    image: ${ECR_REGISTRY_URL}/flink-app:latest
+    container_name: flink-app
+    depends_on:
+      # CORRECTED: The job submission needs a healthy Flink cluster and Kafka cluster.
+      flink-jobmanager:
+        condition: service_healthy
+      <<: *depends-on-kafka-cluster
+    command: ["/opt/flink/bin/flink", "run", "-m", "flink-jobmanager:8081", "/opt/flink/usrlib/flink-java-sensor-app-1.0-SNAPSHOT.jar"]
+    env_file: ["./.env"]
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    volumes: ["mongo_data_streaming:/data/db"]
+
+volumes:
+  kafka_data:
+  kafka2_data:
+  kafka3_data:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_connect_data:
+  mongo_data_streaming:

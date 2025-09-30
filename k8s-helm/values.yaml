@@ -1,0 +1,148 @@
+# Corrected values.yaml
+
+# NEW: Provides non-sensitive info for ESO to generate ECR creds
+aws:
+  accountId: <REPLACE_WITH_AWS_ACCOUNT_ID>
+region: eu-central-1
+
+# Production access configuration
+ingress:
+  enabled: true
+  className: "nginx"  # or "alb" for AWS ALB
+  
+  # FastAPI - Production API (external access)
+  api:
+    enabled: true
+    host: "api.streaming-poc.local"    # Change to your production domain
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      
+      # Set a long timeout for the proxy to keep WebSocket connections alive.
+      # This MUST be longer than your application's KEEP_ALIVE_TIMEOUT_SECONDS.
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600" # 1 hour
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600" # 1 hour
+      
+      # --- IMPORTANT: Performance and Affinity ---
+      # Disable proxy buffering to allow data to stream directly to the client.
+      nginx.ingress.kubernetes.io/proxy-buffering: "off"
+      
+      # Optional but Recommended: Enable session affinity (sticky sessions).
+      # This ensures a client that disconnects and reconnects quickly is likely
+      # routed back to the same pod, which can be useful for some stateful logic.
+      nginx.ingress.kubernetes.io/affinity: "cookie"
+      nginx.ingress.kubernetes.io/session-cookie-name: "INGRESS_SESSION"
+      nginx.ingress.kubernetes.io/session-cookie-expires: "172800" # 2 days
+      nginx.ingress.kubernetes.io/session-cookie-max-age: "172800" # 2 days
+
+      # --- NOTE on HTTP Rate Limiting ---
+      # This rate limit applies ONLY to the initial HTTP Upgrade request,
+      # NOT to the ongoing WebSocket traffic. It's still good to have to
+      # prevent clients from rapidly trying to establish connections.
+      # Your application-level rate limiting on pings is the real protection.
+      nginx.ingress.kubernetes.io/limit-rps: "10" # Limit to 10 connection attempts per second
+  
+  # Admin UIs - Internal monitoring (internal access only)
+  admin:
+    enabled: true
+    # Single internal domain for all admin UIs
+    host: "admin.streaming-poc.local"   # Internal admin domain
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      # Restrict to internal networks only
+      nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    paths:
+      - path: /kafka
+        service: kafka-ui
+        port: 8080
+      - path: /flink  
+        service: flink-app-java-rest
+        port: 8081
+      - path: /mqtt
+        service: mqtt-ui
+        port: 5721
+
+  # TLS configuration (recommended for production)
+  tls:
+    enabled: false
+    # secretName: streaming-poc-tls
+    # production:
+    #   - hosts: ["api.yourdomain.com"]
+    # admin:  
+    #   - hosts: ["admin.yourdomain.com"]
+
+# LoadBalancer - Only for FastAPI in production
+loadBalancer:
+  # Only enable for FastAPI if you need direct external access without ingress
+  fastapi:
+    enabled: false  # Set to true for cloud LoadBalancer
+    port: 8000
+    annotations: {}
+      # For AWS ALB
+      # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+      # service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+
+# --- No changes below, these are fine as config ---
+affinity: {}
+images:
+  fastapiApp: <REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/fastapi-app:latest
+  mqttBridge: <REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/mqtt-bridge:latest
+  flinkApp: <REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/flink-app:latest
+  kafkaConnectSimple: <REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/kafka-connect-simple:latest
+
+fastapi:
+  # workers: 4
+  environment: "production"
+  cors:
+    frontendUrl: "<REPLACE_ME>"
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m" 
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+flink:
+  taskManagerMemory: 16g # can be reduced or increased based on load
+  parallelism: 10 # number of parallel tasks, adjust based on load
+  taskSlots: 10 # number of slots per TaskManager
+  taskCores: 10 # cores per TaskManager
+kafka:
+  kafkaBootStrapServers: imu-kraft-cluster-kafka-bootstrap:9092
+  replicationFactor: 3 # of Kafka brokers, have at least 3 for production
+  inSyncReplicas: 2
+  partitions: 10 # kafka topic partitions must be >= parallelism
+  rebalanceDelay: 10000
+  retentionBytes: 1073741824
+  retentionMs: 3600000  # 1 hour retention (changed from 7 days)
+mqtt:
+  useLocalBroker: false  
+
+env:
+  ENVIRONMENT: "development"
+  MQTT_SHARE_GROUP_NAME: "kafka-bridge-group"
+  MONGO_HOST: "streaming-poc-mongodb"
+  MONGO_PORT: "27017"
+  FAST_API_PORT: "8000"
+  CHECKPOINT_INTERVAL_MS: "30000"
+  KAFKA_INPUT_TOPIC: "imu-data-all"
+  KAFKA_AGGREGATION_TOPIC: "sensor-data-aggregated"
+  KAFKA_OUTPUT_TOPIC: "sensor-data-transformed"
+  KAFKA_NEW_SESSION_TOPIC: "new-session-topic"
+  DB_NAME: "streaming_poc"
+
+externalSecretKeys:
+  - MQTT_BROKER_HOST
+  - MQTT_BROKER_PORT
+  - MQTT_TOPIC_FILTER
+  - S3_BUCKET_PATH
+  - S3_OUTPUT_PATH
+  - MLFLOW_SCALING_INFO_PATH
+  - MLFLOW_ONNX_PATH
+  - MLFLOW_PARAMS_PATH
+
+imagePullSecrets: 
+- name: ecr-creds
+
+nodeSelector: {}
+resources: {}
+tolerations: []

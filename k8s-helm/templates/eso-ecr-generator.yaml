@@ -1,0 +1,20 @@
+---
+# ECR Token Generator for automatic ECR authentication
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: ECRAuthorizationToken
+metadata:
+  name: ecr-token-generator
+  namespace: {{ .Release.Namespace }}
+spec:
+  # AWS region where your ECR registry is located
+  region: {{ .Values.region | default "eu-central-1" }}
+  
+  # Authentication using the same AWS credentials as other external secrets
+  auth:
+    secretRef:
+      accessKeyIDSecretRef:
+        name: eso-aws-creds
+        key: accessKeyID
+      secretAccessKeySecretRef:
+        name: eso-aws-creds
+        key: secretAccessKey

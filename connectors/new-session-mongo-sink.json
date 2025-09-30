@@ -1,0 +1,21 @@
+{
+  "name": "mongo-sink-new-sessions",
+  "config": {
+    "connector.class": "com.mongodb.kafka.connect.MongoSinkConnector",
+    "tasks.max": "1",
+    "topics": "${KAFKA_NEW_SESSION_TOPIC}",
+    "connection.uri": "mongodb://${MONGO_HOST}:${MONGO_PORT}",
+    "database": "${MONGO_DB_NAME}",
+    "collection": "athlete_sessions",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    "writemodel.strategy": "com.mongodb.kafka.connect.sink.writemodel.strategy.UpdateOneTimestampsStrategy",
+    "document.id.strategy": "com.mongodb.kafka.connect.sink.processor.id.strategy.PartialValueStrategy",
+    "document.id.strategy.partial.value.projection.list": "sensor_session_id",
+    "_id.field.name": "sensor_session_id",
+    "document.id.strategy.partial.value.projection.type": "AllowList",
+    "max.num.retries": "5",
+    "retries.defer.time": "1000"
+  }
+}

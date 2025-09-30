@@ -1,0 +1,74 @@
+body {
+  background-color: #f8f9fa; /* Light gray background */
+}
+.card {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+#sessionList .list-group-item {
+  /* cursor: pointer; Remove default cursor if buttons used */
+  transition: background-color 0.2s ease-in-out;
+}
+#sessionList .list-group-item:hover {
+  background-color: #e9ecef; /* Light hover effect */
+}
+ /* Style for buttons within session list items */
+.session-actions button {
+    margin-left: 5px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8rem;
+}
+/* --- Log Area Styles --- */
+#logAnalytics {
+    font-size: 0.9rem;
+    padding: 0.75rem;
+    background-color: #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 0.25rem 0.25rem 0 0; /* Rounded top corners */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+ #logAnalytics span {
+    margin-right: 10px; /* Spacing between stats */
+ }
+ #logAnalytics .badge {
+    font-size: 0.85rem;
+ }
+#messages {
+  max-height: 280px; /* Adjust height slightly */
+  overflow-y: auto;
+  font-size: 0.85rem;
+  background-color: #f8f9fa; /* Match body background for contrast */
+  border-radius: 0 0 0.25rem 0.25rem; /* Rounded bottom corners */
+  padding: 0.75rem;
+  border: 1px solid #dee2e6;
+  border-top: none; /* Remove top border as analytics has bottom */
+}
+#messages p {
+  margin-bottom: 0.5rem;
+  word-break: break-all;
+  border-bottom: 1px dashed #dee2e6; /* Lighter separator */
+  padding-bottom: 0.5rem;
+  font-family: 'Courier New', Courier, monospace; /* Monospace for logs */
+}
+ #messages p:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+ }
+/* --- Chart Styles --- */
+.chart-container {
+  position: relative;
+  height: 45vh; /* Reduced height slightly */
+  width: 100%;
+}
+canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.status-badge {
+    font-size: 0.9rem;
+    vertical-align: middle;
+    margin-left: 10px;
+}

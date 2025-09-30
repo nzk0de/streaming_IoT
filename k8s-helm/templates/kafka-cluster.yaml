@@ -1,0 +1,55 @@
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  annotations:
+    strimzi.io/kraft: enabled
+    strimzi.io/node-pools: enabled
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: 'imu-kraft-cluster'
+spec:
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+  kafka:
+    config:
+      controller.listener.names: controller
+      group.initial.rebalance.delay.ms: {{ .Values.kafka.rebalanceDelay  }}
+      min.insync.replicas: {{ .Values.kafka.inSyncReplicas }}
+      num.partitions: {{ .Values.kafka.partitions }}
+      process.roles: broker,controller
+      transaction.state.log.min.isr: {{ .Values.kafka.inSyncReplicas }}
+      offsets.topic.replication.factor: {{ .Values.kafka.replicationFactor }}
+      transaction.state.log.replication.factor: {{ .Values.kafka.replicationFactor }}
+      default.replication.factor: {{ .Values.kafka.replicationFactor }}
+
+    listeners:
+    - name: broker
+      port: 9092
+      tls: false
+      type: internal
+    - name: controller
+      port: 9093
+      tls: false
+      type: internal
+    - name: external
+      port: 9094
+      tls: false
+      type: nodeport
+    version: 4.0.0
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+    strimzi.io/cluster: imu-kraft-cluster
+  name: imu-kraft-cluster-dual-role
+spec:
+  replicas: {{ .Values.kafka.replicationFactor }}
+  roles:
+  - broker
+  - controller
+  storage:
+    type: ephemeral

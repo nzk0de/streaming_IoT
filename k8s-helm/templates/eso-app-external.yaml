@@ -1,0 +1,18 @@
+# ./k8s-helm/templates/eso-app-externalsecret.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: app-secrets
+spec:
+  refreshInterval: "1h" # How often to check for updates in AWS
+  secretStoreRef:
+    name: aws-secret-store # Points to the SecretStore that knows how to talk to AWS
+    kind: SecretStore
+  target:
+    name: app-secrets # The name of the Kubernetes Secret that will be created
+    creationPolicy: Owner
+  dataFrom:
+  # This part tells ESO to find our secret, parse the JSON, and create
+  # individual keys in the target Kubernetes Secret.
+  - extract:
+      key: streaming-poc/app-config

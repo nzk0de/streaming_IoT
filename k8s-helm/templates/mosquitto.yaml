@@ -1,0 +1,174 @@
+---
+apiVersion: v1
+data:
+  mosquitto.conf: '# Default MQTT listener
+
+    listener 1883 0.0.0.0
+
+
+    # MQTT over WebSockets
+
+    listener 9001 0.0.0.0
+
+    protocol websockets
+
+
+    # Persistence enabled
+
+    persistence true
+
+    persistence_location /mosquitto/data/
+
+
+    # Logging to file
+
+    log_dest file /mosquitto/log/mosquitto.log
+
+    log_type error
+
+    log_type warning
+
+    log_type notice
+
+    log_type information
+
+    log_timestamp_format %Y-%m-%dT%H:%M:%S
+
+
+    # INSECURE anonymous access (dev only)
+
+    allow_anonymous true
+
+    '
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-mosquitto-config'
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-mosquitto-pvc'
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-mosquitto'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+    spec:
+      containers:
+      - image: eclipse-mosquitto:latest
+        name: mosquitto
+        ports:
+        - containerPort: 1883
+        - containerPort: 9001
+        volumeMounts:
+        - mountPath: /mosquitto/config/mosquitto.conf
+          name: config
+          subPath: mosquitto.conf
+        - mountPath: /mosquitto/data
+          name: storage
+        - mountPath: /mosquitto/log
+          name: storage
+      volumes:
+      - configMap:
+          items:
+          - key: mosquitto.conf
+            path: mosquitto.conf
+          name: '{{ .Release.Name }}-mosquitto-config'
+        name: config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: '{{ .Release.Name }}-mosquitto-pvc'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-mosquitto'
+spec:
+  ports:
+  - name: mqtt
+    port: 1883
+    protocol: TCP
+    targetPort: 1883
+  - name: ws
+    port: 9001
+    protocol: TCP
+    targetPort: 9001
+  selector:
+    app: mosquitto
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-mqtt-ui'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mqtt-ui
+  template:
+    metadata:
+      labels:
+        app: mqtt-ui
+    spec:
+      containers:
+      - env:
+        - name: DEBUG
+          value: '{{ .Values.env.DEBUG }}'
+        - name: PORT
+          value: '{{ .Values.env.PORT }}'
+        - name: MQTT_BROKER
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MQTT_BROKER_HOST
+        - name: MQTT_PORT
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MQTT_BROKER_PORT
+        image: terdia07/mqttui:v1.3.0
+        name: mqtt-ui
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-mqtt-ui'
+spec:
+  ports:
+  - name: http
+    port: 5721
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    app: mqtt-ui
+  type: ClusterIP

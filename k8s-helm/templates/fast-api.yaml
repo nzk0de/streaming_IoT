@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: '{{ .Release.Name }}-fastapi'
+  labels:
+    app.kubernetes.io/name: fastapi
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastapi
+  template:
+    metadata:
+      labels:
+        app: fastapi
+    spec:
+      imagePullSecrets:
+        - name: ecr-creds
+      containers:
+        - name: fastapi
+          image: {{ .Values.images.fastapiApp | quote }}
+          ports:
+            - containerPort: 8000
+          env:
+            # --- Configuration from values.yaml ---
+            - name: MONGO_HOST
+              value: {{ .Values.env.MONGO_HOST | quote }}
+            - name: MONGO_PORT
+              value: {{ .Values.env.MONGO_PORT | quote }}
+            - name: DB_NAME
+              value: {{ .Values.env.DB_NAME | quote }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.kafkaBootStrapServers | quote }}
+            - name: KAFKA_FASTAPI_CONSUMER_GROUP
+              value: "fastapi-consumer-group"
+            - name: KAFKA_AGGREGATION_TOPIC
+              value: {{ .Values.env.KAFKA_AGGREGATION_TOPIC | quote }}
+            - name: KAFKA_OUTPUT_TOPIC
+              value: {{ .Values.env.KAFKA_OUTPUT_TOPIC | quote }}
+            # --- External Secrets (explicitly declared for clarity) ---
+            - name: MQTT_BROKER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MQTT_BROKER_HOST
+            - name: MQTT_BROKER_PORT  
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MQTT_BROKER_PORT
+            - name: MQTT_TOPIC_FILTER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MQTT_TOPIC_FILTER
+            - name: S3_BUCKET_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: S3_BUCKET_PATH
+            - name: S3_OUTPUT_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: S3_OUTPUT_PATH
+            - name: MLFLOW_SCALING_INFO_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_SCALING_INFO_PATH
+            - name: MLFLOW_ONNX_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_ONNX_PATH
+            - name: MLFLOW_PARAMS_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MLFLOW_PARAMS_PATH
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: '{{ .Release.Name }}-fastapi'
+  labels:
+    app.kubernetes.io/name: fastapi
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: fastapi
