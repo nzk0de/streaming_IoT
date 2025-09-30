@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fastapi-sensor-streaming"
+version = "0.1.0"
+description = "FastAPI application for real-time sensor data streaming and processing"
+authors = [{name = "Your Name", email = "your.email@example.com"}]
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.1", 
+    "motor>=3.4.0",
+    "pymongo>=4.8.0",
+    "aiokafka>=0.10.0",
+    "kafka-python>=2.0.2",
+    "pydantic-settings>=2.10.1",
+    "python-dotenv>=1.0.0",
+    "pandas>=2.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "httpx>=0.28.1",
+]
+test = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0", 
+    "httpx>=0.28.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/streaming-poc"
+Repository = "https://github.com/yourusername/streaming-poc"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I"]
+ignore = ["E501"]  # Line length handled by formatter

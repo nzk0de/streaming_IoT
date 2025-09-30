@@ -1,0 +1,56 @@
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+    strimzi.io/cluster: imu-kraft-cluster
+  name: '{{ .Values.env.KAFKA_INPUT_TOPIC }}'
+spec:
+  config:
+    retention.bytes: {{ .Values.kafka.retentionBytes }}
+    retention.ms: {{ .Values.kafka.retentionMs }}
+  partitions: {{ .Values.kafka.partitions }}
+  replicas: {{ .Values.kafka.replicationFactor }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+    strimzi.io/cluster: imu-kraft-cluster
+  name: '{{ .Values.env.KAFKA_NEW_SESSION_TOPIC }}'
+spec:
+  config:
+    retention.bytes: {{ .Values.kafka.retentionBytes }}
+    retention.ms: '{{ .Values.kafka.retentionMs }}'
+  partitions: 10
+  replicas: {{ .Values.kafka.replicationFactor }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+    strimzi.io/cluster: imu-kraft-cluster
+  name: '{{ .Values.env.KAFKA_OUTPUT_TOPIC }}'
+spec:
+  config:
+    retention.bytes: {{ .Values.kafka.retentionBytes }}
+    retention.ms: {{ .Values.kafka.retentionMs }}
+  partitions: 1
+  replicas: {{ .Values.kafka.replicationFactor }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+    strimzi.io/cluster: imu-kraft-cluster
+  name: '{{ .Values.env.KAFKA_AGGREGATION_TOPIC }}'
+spec:
+  config:
+    retention.bytes: {{ .Values.kafka.retentionBytes }}
+    retention.ms: {{ .Values.kafka.retentionMs }}
+  partitions: 1
+  replicas: {{ .Values.kafka.replicationFactor }}

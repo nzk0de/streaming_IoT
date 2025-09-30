@@ -1,0 +1,10 @@
+# requirements.txt
+boto3
+crcmod
+numpy
+pandas
+aiomqtt
+python-dotenv
+s3fs
+dask[distributed]
+plotly

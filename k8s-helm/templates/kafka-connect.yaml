@@ -1,0 +1,30 @@
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  annotations:
+    strimzi.io/use-connector-resources: 'true'
+  labels:
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+  name: '{{ .Release.Name }}-imu-connect-cluster'
+spec:
+  bootstrapServers: {{ .Values.kafka.kafkaBootStrapServers | quote }}
+  config:
+    config.storage.replication.factor: {{ .Values.kafka.replicationFactor }}
+    config.storage.topic: connect-configs
+    offset.storage.replication.factor: {{ .Values.kafka.replicationFactor }}
+    offset.storage.topic: connect-offsets
+    status.storage.replication.factor: {{ .Values.kafka.replicationFactor }}
+    status.storage.topic: connect-statuses
+  image: {{ .Values.images.kafkaConnectSimple | quote }}
+  replicas: 1
+  version: 3.6.0 # Tip: Strimzi recommends matching the Kafka version. 4.0.0 is not a valid Strimzi version. Use 3.6.0 for Kafka 3.6.
+  # --- CORRECTED SECTION ---
+  # This template applies to the Pods created by the KafkaConnect Deployment
+  template:
+    pod:
+      imagePullSecrets:
+        - name: ecr-creds
+# --- END CORRECTED SECTION ---
+# FileStreamSourceConnector removed - Flink writes directly to S3
+# Only the MongoDB sink connector is needed for new sessions

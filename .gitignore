@@ -1,0 +1,14 @@
+*.env
+venv/
+__pycache__
+*jar
+.idea
+*/vendor
+
+*.log
+*.db
+*.pyc
+*/target
+*/artifacts
+envs/
+dev

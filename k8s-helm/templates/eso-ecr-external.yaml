@@ -1,0 +1,33 @@
+# External Secret for automatic ECR token refresh
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: ecr-creds
+  namespace: {{ .Release.Namespace }}
+spec:
+  refreshInterval: "6h" # Refresh ECR token every 6 hours (tokens expire after 12h)
+  secretStoreRef:
+    name: aws-secret-store
+    kind: SecretStore
+  target:
+    name: ecr-creds # The name of the Kubernetes Secret that will be created
+    type: kubernetes.io/dockerconfigjson
+    template:
+      type: kubernetes.io/dockerconfigjson
+      data:
+        .dockerconfigjson: |
+          {
+            "auths": {
+              "{{ printf "%.0f" .Values.aws.accountId }}.dkr.ecr.{{ .Values.region }}.amazonaws.com": {
+                "username": "AWS",
+                "password": "{{ "{{ .password }}" }}",
+                "auth": "{{ "{{ printf \"AWS:%s\" .password | b64enc }}" }}"
+              }
+            }
+          }
+  dataFrom:
+  - sourceRef:
+      generatorRef:
+        apiVersion: generators.external-secrets.io/v1alpha1
+        kind: ECRAuthorizationToken
+        name: ecr-token-generator
