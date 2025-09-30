@@ -9,23 +9,9 @@ A production-ready, cloud-native streaming data processing platform for IoT sens
 
 ---
 
-## 🎯 **What This Demonstrates**
-
-### **🏗️ System Architecture & Design**
-- **Event-Driven Architecture**: Complete MQTT → Kafka → Flink → API data pipeline
-- **Microservices Patterns**: Containerized services with clear separation of concerns  
-- **Cloud-Native Design**: Kubernetes-first with operators, ingress, and auto-scaling
-- **Production Readiness**: Monitoring, logging, health checks, and disaster recovery
-
-### **🔧 Technical Leadership Skills**  
-- **Technology Selection**: Justified choices of Kafka, Flink, FastAPI based on requirements
-- **DevOps Excellence**: Complete CI/CD pipeline with Helm, Docker, AWS ECR integration
-- **Security Implementation**: TLS termination, secrets management, network policies
-- **Performance Engineering**: Optimized for 10k+ messages/second with sub-100ms latency
-
 ## 📋 **Table of Contents**
-- [� Proof of Work Overview](#-proof-of-work-overview)
-- [�🏗️ System Architecture](#️-system-architecture)
+- [🎯 Proof of Work Overview](#-proof-of-work-overview)
+- [🏗️ System Architecture](#️-system-architecture)
 - [✨ Key Features](#-key-features) 
 - [🔧 Technology Stack](#-technology-stack)
 - [📋 Prerequisites](#-prerequisites)
@@ -35,8 +21,9 @@ A production-ready, cloud-native streaming data processing platform for IoT sens
 - [📊 Monitoring & Observability](#-monitoring--observability)
 - [🛠️ Development](#️-development)
 - [🔄 Operations](#-operations)
-- [🐛 Troubleshooting](#-troubleshooting)
-- [📚 API Documentation](#-api-documentation)
+- [� API Documentation](#-api-documentation)
+- [📝 Make Commands Reference](#-make-commands-reference)
+- [🏆 Production Checklist](#-production-checklist)
 
 ---
 
@@ -174,26 +161,15 @@ IoT Sensors → MQTT Broker → Kafka Cluster → Flink Processing → FastAPI �
    Data         & Routing    & ML Inference    & WebSockets    Dashboard
 ```
 
-For detailed architecture diagrams, see [System Architecture Documentation](./docs/system_architecture.md).
-
-### Core Components
-- **🔄 Apache Kafka** (Strimzi Operator) - Distributed event streaming platform
-- **⚡ Apache Flink** - Real-time stream processing with ML inference
-- **🚀 FastAPI** - High-performance Python web framework with WebSockets
-- **📡 MQTT Bridge** (Go) - High-throughput MQTT to Kafka connector
-- **📊 MongoDB** - Document database for session and processed data
-- **☁️ AWS Integration** - ECR, S3, Secrets Manager with automated credential rotation
+📋 **[Complete Architecture Documentation & Diagrams →](./docs/system_architecture.md)**
 
 ## ✨ **Key Features**
 
-### 🔄 **Real-time Data Processing**
-- **Sub-second Latency**: End-to-end processing latency < 100ms
-- **High Throughput**: Handles 1k+ sensors of fs=200Hz
-- **Auto Scaling**: Kubernetes HPA for dynamic resource allocation, we offer both vertical and horizontal scaling.
-- **Fault Tolerance**: Kafka replication, Flink checkpointing, graceful failure handling
-
-### 🧠 **Advanced Stream Processing & ML**
+### 🔄 **Real-time Stream Processing & ML**
+- **Sub-100ms Latency**: End-to-end processing with 1k+ sensors at 200Hz (200k+ events/second)
 - **ML Inference Pipeline**: Real-time ONNX model inference in Flink jobs (models not included in POW)
+- **Auto Scaling**: Kubernetes HPA/VPA for dynamic resource allocation
+- **Fault Tolerance**: Kafka replication, Flink checkpointing, graceful failure handling
 - **MLflow Integration**: Model versioning, experiment tracking, and deployment automation
 
 ### 🔐 **Enterprise Security**
@@ -380,27 +356,19 @@ echo "$INGRESS_IP admin.streaming-poc.local" | sudo tee -a /etc/hosts
 
 ### **Production Domains**
 
-For real production with custom domains:
+For custom production domains, update the Helm values:
 
 ```yaml
-# values-production.yaml
+# values-production.yaml  
 ingress:
   api:
     host: "api.yourdomain.com"
   admin:
-    host: "monitoring.yourdomain.com" 
+    host: "monitoring.yourdomain.com"
   tls:
     enabled: true
     issuer: "letsencrypt-prod"
-    production:
-      - hosts: ["api.yourdomain.com"]
-        secretName: api-tls-cert
-    admin:
-      - hosts: ["monitoring.yourdomain.com"] 
-        secretName: admin-tls-cert
 ```
-
-See [Production Access Documentation](./PRODUCTION_ACCESS.md) for complete setup guide.
 
 ## 🔧 **Configuration**
 
@@ -409,7 +377,7 @@ See [Production Access Documentation](./PRODUCTION_ACCESS.md) for complete setup
 ```yaml
 # k8s-helm/values.yaml (Development)
 aws:
-  accountId: "649585290571"
+  accountId: "<REPLACE_WITH_AWS_ACCOUNT_ID>"
 region: "eu-central-1"
 
 # Resource allocation
@@ -432,16 +400,29 @@ env:
   CHECKPOINT_INTERVAL_MS: "30000"
 ```
 
-### **Custom Container Images**
+### **AWS ECR Container Images**
 
-The platform uses custom-built images stored in AWS ECR:
+All services use custom-built images stored in AWS ECR:
 
-| Service | Image | Purpose |
-|---------|-------|---------|
-| `fastapi-app` | FastAPI + WebSocket server | REST API & real-time communication |
-| `flink-app` | Flink job JAR | Stream processing & ML inference |
-| `mqtt-bridge` | Go-based MQTT client | High-performance MQTT ↔ Kafka bridge |
-| `kafka-connect-simple` | Kafka Connect + connectors | S3 sink, MongoDB connector |
+| Service | ECR Repository | Purpose |
+|---------|---------------|---------|
+| `fastapi-app` | `<REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/fastapi-app` | REST API & WebSocket server |
+| `flink-app` | `<REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/flink-app` | Stream processing & ML inference |
+| `mqtt-bridge` | `<REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/mqtt-bridge` | High-performance MQTT ↔ Kafka bridge |
+| `kafka-connect-simple` | `<REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/kafka-connect-simple` | S3 sink, MongoDB connector |
+
+**ECR Management Commands:**
+```bash
+# Create ECR repositories (one-time setup)
+make create-ecr-repos
+
+# Build, tag, and push images
+make push
+
+# Deploy with specific image version
+helm upgrade streaming-poc ./k8s-helm -n streaming-kafka \
+  --set images.fastapiApp=<REPLACE_WITH_AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/fastapi-app:v2.0
+```
 
 ### **AWS Integration Configuration**
 
@@ -453,13 +434,6 @@ streaming-poc/app-config:
 ├── S3_BUCKET_PATH
 ├── MLFLOW_ONNX_PATH
 └── AWS credentials
-
-# ECR repositories (auto-created)
-└── 649585290571.dkr.ecr.eu-central-1.amazonaws.com/
-    ├── fastapi-app:latest
-    ├── flink-app:latest
-    ├── mqtt-bridge:latest
-    └── kafka-connect-simple:latest
 ```
 
 ## � **Monitoring & Observability**
@@ -475,49 +449,6 @@ Access monitoring interfaces:
 | **MQTT UI** | http://localhost:5721 | https://admin.streaming-poc.local/mqtt |
 | **FastAPI Docs** | http://localhost:8000/docs | https://api.streaming-poc.local/docs |
 
-
-
-### **Metrics & Alerting**
-
-```bash
-# Application metrics
-curl http://localhost:8000/metrics  # FastAPI Prometheus metrics
-
-# Kafka cluster metrics
-kubectl port-forward svc/kafka-ui 9080:8080 -n streaming-kafka
-
-# Flink job metrics  
-kubectl port-forward svc/streaming-poc-flink-app-java-rest 8081:8081 -n streaming-kafka
-```
-
-### **Log Aggregation**
-
-```bash
-# Stream application logs
-kubectl logs -f deployment/streaming-poc-fastapi -n streaming-kafka
-
-# Stream processing logs
-kubectl logs -f deployment/streaming-poc-flink-app-java-jobmanager -n streaming-kafka
-
-# MQTT bridge logs
-kubectl logs -f deployment/streaming-poc-mqtt-bridge -n streaming-kafka
-
-# Kafka cluster logs
-kubectl logs -f streaming-poc-imu-kraft-cluster-kafka-0 -n streaming-kafka
-```
-
-### **Health Checks & Readiness**
-
-```bash
-# Check pod health status
-kubectl get pods -n streaming-kafka -o wide
-
-# Detailed resource usage
-kubectl top pods -n streaming-kafka
-
-# Service endpoint health
-kubectl get endpoints -n streaming-kafka
-```
 
 ## 🛠️ **Development**
 
@@ -547,17 +478,6 @@ python simulator.py --sensors 3 --rate 100
 # Build all Docker images locally
 make build
 
-# Create ECR repositories (one-time setup)
-make create-ecr-repos
-
-# Build, tag, and push to ECR
-make push
-
-# Deploy with new images
-helm upgrade streaming-poc ./k8s-helm -n streaming-kafka \
-  --set images.fastapiApp=649585290571.dkr.ecr.eu-central-1.amazonaws.com/fastapi-app:v2.0
-
-
 #### **Update Application Secrets**
 ```bash
 # 1. Update AWS Secrets Manager
@@ -571,127 +491,6 @@ kubectl annotate externalsecret app-secrets -n streaming-kafka \
 
 # 3. Restart affected pods
 make restart-pods
-```
-
-## 🔄 **Operations**
-
-### **Horizontal & Vertical Scaling**
-
-```bash
-# Scale FastAPI for higher throughput
-kubectl scale deployment streaming-poc-fastapi -n streaming-kafka --replicas=5
-
-# Scale Flink TaskManagers for more parallelism
-kubectl scale deployment streaming-poc-flink-app-java-taskmanager -n streaming-kafka --replicas=6
-
-# Increase Kafka partitions (requires restart)
-kubectl patch kafkatopic imu-data-all -n streaming-kafka --type='merge' -p='{"spec":{"partitions":20}}'
-
-# Vertical scaling - increase resources
-kubectl patch deployment streaming-poc-fastapi -n streaming-kafka -p='
-{
-  "spec": {
-    "template": {
-      "spec": {
-        "containers": [{
-          "name": "fastapi",
-          "resources": {
-            "requests": {"cpu": "2", "memory": "4Gi"},
-            "limits": {"cpu": "4", "memory": "8Gi"}
-          }
-        }]
-      }
-    }
-  }
-}'
-```
-
-### **Application Updates & Rollbacks**
-
-```bash
-# Rolling update with new image version
-helm upgrade streaming-poc ./k8s-helm -n streaming-kafka \
-  --set images.fastapiApp=649585290571.dkr.ecr.eu-central-1.amazonaws.com/fastapi-app:v2.1.0 \
-  --wait
-
-# Update configuration without image changes
-helm upgrade streaming-poc ./k8s-helm -n streaming-kafka \
-  --set flink.parallelism=20 \
-  --wait
-
-# Rollback to previous version
-helm rollback streaming-poc 1 -n streaming-kafka
-
-# Check rollout status
-kubectl rollout status deployment/streaming-poc-fastapi -n streaming-kafka
-```
-
-### **Backup & Disaster Recovery**
-
-```bash
-# Backup Kafka topics (using Kafka Connect S3 Sink - automatic)
-# Data is continuously backed up to S3
-
-# Export Helm configuration
-helm get values streaming-poc -n streaming-kafka > backup-values.yaml
-
-# Backup MongoDB data
-kubectl exec -it streaming-poc-mongodb-0 -n streaming-kafka -- \
-  mongodump --db streaming_poc --out /tmp/backup
-
-# S3 data backup verification
-aws s3 ls s3://your-bucket/raw-data/ --recursive --human-readable
-
-# Disaster recovery deployment
-helm install streaming-poc-dr ./k8s-helm -n streaming-kafka-dr \
-  -f backup-values.yaml
-```
-
-### **Performance Optimization**
-
-```bash
-# Optimize Kafka consumer lag
-kubectl exec -it streaming-poc-imu-kraft-cluster-kafka-0 -n streaming-kafka -- \
-  kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
-  --describe --group fastapi-consumer-group
-
-# Flink checkpoint optimization  
-kubectl logs streaming-poc-flink-app-java-jobmanager-xxx -n streaming-kafka | \
-  grep "checkpoint"
-
-# Monitor resource utilization
-kubectl top pods -n streaming-kafka --sort-by=cpu
-kubectl top pods -n streaming-kafka --sort-by=memory
-```
-#### **🗃️ Data Flow Validation**
-```bash
-# Check Kafka topic data flow
-kubectl exec -it streaming-poc-imu-kraft-cluster-kafka-0 -n streaming-kafka -- \
-  kafka-console-consumer.sh --bootstrap-server localhost:9092 \
-  --topic imu-data-all --from-beginning
-
-# Verify MongoDB data
-kubectl exec -it streaming-poc-mongodb-0 -n streaming-kafka -- \
-  mongo streaming_poc --eval "db.sessions.find().limit(5)"
-
-# Check S3 data pipeline
-aws s3 ls s3://your-bucket/raw-data/ --recursive | head -10
-```
-
-#### **📊 Performance Diagnostics**
-```bash
-# Check resource utilization
-kubectl top pods -n streaming-kafka --sort-by=memory
-kubectl top nodes
-
-# Kafka consumer lag analysis
-kubectl exec -it streaming-poc-imu-kraft-cluster-kafka-0 -n streaming-kafka -- \
-  kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
-  --describe --all-groups
-
-# Flink checkpoint and backpressure
-kubectl logs deployment/streaming-poc-flink-app-java-jobmanager -n streaming-kafka | \
-  grep -E "(checkpoint|backpressure)"
 ```
 
 ## � **API Documentation**
@@ -733,35 +532,7 @@ make helm-uninstall    # Remove application while preserving operators
 make setup-https       # Configure HTTPS/TLS with Let's Encrypt certificates
 ```
 
-### **📦 Image Management**
-```bash
-make create-ecr-repos   # Create AWS ECR repositories (one-time setup)
-make push              # Build, tag, and push all images to ECR
-make pull              # Pull latest images from ECR
-
-
-## 🏆 **Production Checklist**
-
-### **Before Going Live**
-- [ ] **Security**: Enable TLS/HTTPS with valid certificates
-- [ ] **Monitoring**: Configure Prometheus + Grafana dashboards  
-- [ ] **Backups**: Verify S3 data backup and MongoDB backup strategy
-- [ ] **Scaling**: Test horizontal pod autoscaling (HPA)
-- [ ] **Networking**: Configure network policies and firewall rules
-- [ ] **Secrets**: Rotate all default passwords and API keys
-- [ ] **Load Testing**: Validate performance under expected load
-- [ ] **Disaster Recovery**: Test backup restoration procedures
-
-### **Ongoing Operations**
-- [ ] **Monitor**: Set up alerts for pod failures, resource usage, and data lag
-- [ ] **Update**: Regular security patches and dependency updates
-- [ ] **Backup**: Automated backup verification and retention policies
-- [ ] **Scale**: Monitor and adjust resource allocation based on usage
-- [ ] **Audit**: Regular security audits and access reviews
-
----
-
-### **🚀 Technical Interview Ready**
+## **🚀 Technical Interview Ready**
 This project covers:
 ```
 ☑️  System Design (Large Scale)    ☑️  Cloud Architecture (AWS/K8s)
@@ -770,4 +541,44 @@ This project covers:
 ☑️  GitOps & Infrastructure        ☑️  Database Design
 ☑️  DevOps & CI/CD Pipelines       ☑️  Monitoring & Observability
 ```
+
+---
+
+## 📐 **Architecture Diagrams & Documentation**
+
+### **🏗️ System Architecture Overview**
+
+#### **🏗️ Deployment Architecture**
+*Kubernetes deployment with operators, services, and resource allocation*
+
+![Deployment Architecture](./docs/deployment.png)
+
+---
+
+#### **🌐 Network Architecture**  
+*Service mesh, ingress routing, and network policies*
+
+![Network Architecture](./docs/network.png)
+
+---
+
+#### **🔐 Security Architecture**
+*Zero-trust security model with TLS, RBAC, and secrets management*
+
+![Security Architecture](./docs/security.png)
+
+---
+
+#### **🔄 Data Flow Sequence**
+*End-to-end real-time data processing pipeline*
+
+![Data Flow Sequence](./docs/sequence.png)
+
+---
+
+### **🎯 Architecture Highlights**
+- **Kubernetes-Native**: Operators, CRDs, and GitOps workflows  
+- **Multi-AZ Deployment**: High availability with auto-scaling (HPA/VPA)
+- **Zero-Trust Security**: mTLS, RBAC, network segmentation, and compliance-ready audit logging
+- **Real-time ML**: ONNX model inference within stream processing pipeline
 
