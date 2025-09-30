@@ -551,28 +551,28 @@ This project covers:
 #### **🏗️ Deployment Architecture**
 *Kubernetes deployment with operators, services, and resource allocation*
 
-![Deployment Architecture](./docs/deployment.png)
+<img src="./docs/deployment.png" alt="Deployment Architecture" width="600">
 
 ---
 
 #### **🌐 Network Architecture**  
 *Service mesh, ingress routing, and network policies*
 
-![Network Architecture](./docs/network.png)
+<img src="./docs/network.png" alt="Network Architecture" width="600">
 
 ---
 
 #### **🔐 Security Architecture**
 *Zero-trust security model with TLS, RBAC, and secrets management*
 
-![Security Architecture](./docs/security.png)
+<img src="./docs/security.png" alt="Security Architecture" width="600">
 
 ---
 
 #### **🔄 Data Flow Sequence**
 *End-to-end real-time data processing pipeline*
 
-![Data Flow Sequence](./docs/sequence.png)
+<img src="./docs/sequence.png" alt="Data Flow Sequence" width="600">
 
 ---
 
