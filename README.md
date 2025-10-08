@@ -151,17 +151,38 @@ In enterprise environments, certain components contain proprietary algorithms or
 
 ---
 
-## 🏗️ **System Architecture**
+---
 
-### High-Level Overview
-```
-IoT Sensors → MQTT Broker → Kafka Cluster → Flink Processing → FastAPI → WebSocket/REST API
-     ↓              ↓             ↓              ↓              ↓
-  Real-time    Message Queue  Stream Processing  Session Mgmt   Frontend
-   Data         & Routing    & ML Inference    & WebSockets    Dashboard
-```
+## 📐 **Architecture Diagrams & Documentation**
 
-📋 **[Complete Architecture Documentation & Diagrams →](./docs/system_architecture.md)**
+### **🏗️ System Architecture Overview**
+
+#### **🏗️ Deployment Architecture**
+*Kubernetes deployment with operators, services, and resource allocation*
+
+<img src="./docs/deployment.png" alt="Deployment Architecture" width="600">
+
+---
+
+#### **🌐 Network Architecture**  
+*Service mesh, ingress routing, and network policies*
+
+<img src="./docs/network.png" alt="Network Architecture" width="600">
+
+---
+
+#### **🔐 Security Architecture**
+*Zero-trust security model with TLS, RBAC, and secrets management*
+
+<img src="./docs/security.png" alt="Security Architecture" width="600">
+
+---
+
+#### **🔄 Data Flow Sequence**
+*End-to-end real-time data processing pipeline*
+
+<img src="./docs/sequence.png" alt="Data Flow Sequence" width="600">
+
 
 ## ✨ **Key Features**
 
@@ -542,37 +563,6 @@ This project covers:
 ☑️  DevOps & CI/CD Pipelines       ☑️  Monitoring & Observability
 ```
 
----
-
-## 📐 **Architecture Diagrams & Documentation**
-
-### **🏗️ System Architecture Overview**
-
-#### **🏗️ Deployment Architecture**
-*Kubernetes deployment with operators, services, and resource allocation*
-
-<img src="./docs/deployment.png" alt="Deployment Architecture" width="600">
-
----
-
-#### **🌐 Network Architecture**  
-*Service mesh, ingress routing, and network policies*
-
-<img src="./docs/network.png" alt="Network Architecture" width="600">
-
----
-
-#### **🔐 Security Architecture**
-*Zero-trust security model with TLS, RBAC, and secrets management*
-
-<img src="./docs/security.png" alt="Security Architecture" width="600">
-
----
-
-#### **🔄 Data Flow Sequence**
-*End-to-end real-time data processing pipeline*
-
-<img src="./docs/sequence.png" alt="Data Flow Sequence" width="600">
 
 ---
 
